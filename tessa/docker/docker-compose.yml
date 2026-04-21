@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:7
+    container_name: tessa-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    environment:
+      MONGO_INITDB_DATABASE: tessa
+    networks:
+      - tessa-network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: tessa-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017/tessa
+      - OLLAMA_HOST=http://host.docker.internal:11434
+      - OLLAMA_MODEL=mistral
+      - HOST=0.0.0.0
+      - PORT=8000
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - tessa-network
+
+networks:
+  tessa-network:
+    driver: bridge
+
+volumes:
+  mongodb_data:
