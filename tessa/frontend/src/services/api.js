@@ -41,11 +41,42 @@ class ApiService {
   }
 
   // Send a chat message
-  async sendMessage(message) {
+  async sendMessage(message, sessionId = null, isTemporary = false) {
     return this.request('/chat', {
       method: 'POST',
-      body: JSON.stringify({ message }),
+      body: JSON.stringify({
+        message,
+        session_id: sessionId,
+        is_temporary: isTemporary,
+        generate_title: !sessionId && !isTemporary
+      }),
     });
+  }
+
+  // Chat Sessions
+  async getSessions() {
+    return this.request('/sessions');
+  }
+
+  async getSession(sessionId) {
+    return this.request(`/sessions/${sessionId}`);
+  }
+
+  async createSession(title = 'New Chat', isTemporary = false) {
+    return this.request(`/sessions?title=${encodeURIComponent(title)}&is_temporary=${isTemporary}`, {
+      method: 'POST',
+    });
+  }
+
+  async deleteSession(sessionId) {
+    return this.request(`/sessions/${sessionId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Export all data
+  async exportData() {
+    return this.request('/data/export');
   }
 
   // Get conversation history

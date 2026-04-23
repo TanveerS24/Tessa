@@ -9,7 +9,11 @@ from models.schemas import (
     ContextListResponse,
     ConversationHistoryResponse,
     ConversationEntry,
-    SystemStatus
+    SystemStatus,
+    ChatSession,
+    ChatSessionDetail,
+    ChatSessionListResponse,
+    DataExportResponse
 )
 from services.memory_service import MemoryService
 from services.ollama_service import ollama_service
@@ -36,27 +40,46 @@ async def health_check():
 async def chat(request: ChatRequest):
     """
     Process a chat message from the user.
-    
-    1. Retrieves memory (context + recent conversations)
-    2. Builds prompt with personality
-    3. Calls Ollama
-    4. Stores conversation in database
-    5. Returns AI response
+    Supports continuing existing chats via session_id.
+    Supports temporary chats that won't be stored in memory.
     """
     try:
         memory_service = MemoryService()
+        session_id = request.session_id
 
-        # Build prompt with context
-        prompt = memory_service.build_prompt(request.message)
+        # Handle session creation/continuation
+        if session_id:
+            # Continue existing session
+            session = memory_service.get_chat_session(session_id)
+            if not session:
+                raise HTTPException(status_code=404, detail="Chat session not found")
+        elif not request.is_temporary:
+            # Create new persistent session
+            title = memory_service.generate_chat_title(request.message) if request.generate_title else "New Chat"
+            session_id = memory_service.create_chat_session(title=title, is_temporary=False)
+
+        # Build prompt with context (skip memory for temporary chats)
+        if request.is_temporary:
+            # For temporary chats, don't include past conversations in context
+            prompt = memory_service.build_prompt_for_session(request.message, session_id, include_memory=False)
+        else:
+            prompt = memory_service.build_prompt(request.message)
 
         # Generate response from Ollama
         ai_response = await ollama_service.generate(prompt)
 
         # Store conversation in database
-        memory_service.store_conversation(request.message, ai_response)
+        memory_service.store_conversation_with_session(
+            request.message, 
+            ai_response, 
+            session_id=session_id,
+            is_temporary=request.is_temporary
+        )
 
         return ChatResponse(response=ai_response)
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Chat processing failed: {str(e)}")
 
@@ -161,3 +184,106 @@ async def delete_context(key: str):
             status_code=500,
             detail=f"Failed to delete context: {str(e)}"
         )
+
+
+# Chat Session Endpoints
+
+@router.get("/sessions", response_model=ChatSessionListResponse)
+async def list_sessions(include_temporary: bool = False):
+    """Get all chat sessions, optionally including temporary ones."""
+    try:
+        memory_service = MemoryService()
+        sessions = memory_service.get_all_chat_sessions(include_temporary=include_temporary)
+        return ChatSessionListResponse(sessions=sessions, total=len(sessions))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch sessions: {str(e)}")
+
+
+@router.post("/sessions", response_model=ChatSession)
+async def create_session(title: str = None, is_temporary: bool = False):
+    """Create a new chat session."""
+    try:
+        memory_service = MemoryService()
+        session_id = memory_service.create_chat_session(title=title or "New Chat", is_temporary=is_temporary)
+        if not session_id:
+            raise HTTPException(status_code=500, detail="Failed to create session")
+        
+        return ChatSession(
+            id=session_id,
+            title=title or "New Chat",
+            is_temporary=is_temporary,
+            message_count=0
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to create session: {str(e)}")
+
+
+@router.get("/sessions/{session_id}", response_model=ChatSessionDetail)
+async def get_session(session_id: str):
+    """Get a specific chat session with all its messages."""
+    try:
+        memory_service = MemoryService()
+        
+        # Get session details
+        session = memory_service.get_chat_session(session_id)
+        if not session:
+            raise HTTPException(status_code=404, detail="Chat session not found")
+        
+        # Get session messages
+        messages = memory_service.get_session_messages(session_id)
+        
+        # Build conversation entries
+        message_entries = [
+            ConversationEntry(
+                user_message=msg["user_message"],
+                ai_response=msg["ai_response"],
+                timestamp=msg["timestamp"]
+            )
+            for msg in messages
+        ]
+        
+        return ChatSessionDetail(
+            id=session.get("id"),
+            title=session.get("title", "Untitled"),
+            created_at=session.get("created_at"),
+            updated_at=session.get("updated_at"),
+            is_temporary=session.get("is_temporary", False),
+            message_count=session.get("message_count", 0),
+            messages=message_entries
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch session: {str(e)}")
+
+
+@router.delete("/sessions/{session_id}")
+async def delete_session(session_id: str):
+    """Delete a chat session and all its messages."""
+    try:
+        memory_service = MemoryService()
+        success = memory_service.delete_chat_session(session_id)
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to delete session")
+        
+        return JSONResponse(content={"message": "Session deleted successfully"})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete session: {str(e)}")
+
+
+# Data Export Endpoint
+
+@router.get("/data/export", response_model=DataExportResponse)
+async def export_data():
+    """Export all data from the database in JSON format."""
+    try:
+        memory_service = MemoryService()
+        data = memory_service.get_all_data_for_export()
+        
+        return DataExportResponse(
+            conversations=data["conversations"],
+            context=data["context"],
+            chat_sessions=data["chat_sessions"]
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to export data: {str(e)}")

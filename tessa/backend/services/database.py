@@ -35,8 +35,14 @@ class DatabaseManager:
             return
         # Index for convo collection - timestamp for recent queries
         self._db.convo.create_index([("timestamp", DESCENDING)])
+        # Index for convo collection - session_id for filtering by chat session
+        self._db.convo.create_index([("session_id", ASCENDING), ("timestamp", ASCENDING)])
         # Index for context collection - key for unique lookups
         self._db.context.create_index([("key", ASCENDING)], unique=True)
+        # Index for chat_sessions collection - updated_at for recent sessions
+        self._db.chat_sessions.create_index([("updated_at", DESCENDING)])
+        # Index for chat_sessions collection - is_temporary for filtering
+        self._db.chat_sessions.create_index([("is_temporary", ASCENDING), ("updated_at", DESCENDING)])
 
     @property
     def db(self) -> Optional[Database]:
@@ -49,6 +55,10 @@ class DatabaseManager:
     @property
     def context(self) -> Optional[Collection]:
         return self._db.context if self._db is not None else None
+
+    @property
+    def chat_sessions(self) -> Optional[Collection]:
+        return self._db.chat_sessions if self._db is not None else None
 
     def health_check(self) -> bool:
         try:
