@@ -31,9 +31,10 @@ class OllamaService:
             # Check if our model is available
             data = response.json()
             models = data.get("models", [])
-            model_names = [m.get("name", "").split(":")[0] for m in models]
+            model_names = [m.get("name", "") for m in models]
+            model_base_names = [m.split(":")[0] for m in model_names if m]
 
-            return self.model in model_names
+            return self.model in model_names or self.model.split(":")[0] in model_base_names
         except Exception as e:
             print(f"Ollama health check failed: {e}")
             return False

@@ -44,11 +44,11 @@ class DatabaseManager:
 
     @property
     def conversations(self) -> Optional[Collection]:
-        return self._db.convo if self._db else None
+        return self._db.convo if self._db is not None else None
 
     @property
     def context(self) -> Optional[Collection]:
-        return self._db.context if self._db else None
+        return self._db.context if self._db is not None else None
 
     def health_check(self) -> bool:
         try:
