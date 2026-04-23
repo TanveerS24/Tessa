@@ -30,14 +30,12 @@ services:
     environment:
       - MONGODB_URI=mongodb://mongodb:27017/tessa
       - OLLAMA_HOST=http://host.docker.internal:11434
-      - OLLAMA_MODEL=mistral
+      - OLLAMA_MODEL=llama3.1:8b
       - HOST=0.0.0.0
       - PORT=8000
     depends_on:
       mongodb:
         condition: service_healthy
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     networks:
       - tessa-network
 
