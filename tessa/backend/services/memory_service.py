@@ -351,7 +351,11 @@ Remember: Be Tessa. A best friend assistant who's helpful but has personality.""
             return False
 
     def delete_chat_session(self, session_id: str) -> bool:
-        """Delete a chat session and all its messages."""
+        """Delete a chat session and all its messages.
+        
+        Note: This does NOT delete any context memory entries (user facts, preferences).
+        Context memory is stored separately and persists even when chat sessions are deleted.
+        """
         if self.db.chat_sessions is None or self.db.conversations is None:
             return False
 
@@ -360,6 +364,8 @@ Remember: Be Tessa. A best friend assistant who's helpful but has personality.""
             self.db.conversations.delete_many({"session_id": session_id})
             # Delete the session
             self.db.chat_sessions.delete_one({"_id": ObjectId(session_id)})
+            # Note: We intentionally do NOT delete from the context collection
+            # This preserves user's learned preferences and facts
             return True
         except Exception as e:
             print(f"Error deleting chat session: {e}")

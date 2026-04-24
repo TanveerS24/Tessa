@@ -27,10 +27,10 @@ services:
     restart: unless-stopped
     ports:
       - "8000:8000"
+    env_file:
+      - ../backend/.env
     environment:
       - MONGODB_URI=mongodb://mongodb:27017/tessa
-      - OLLAMA_HOST=http://host.docker.internal:11434
-      - OLLAMA_MODEL=llama3.1:8b
       - HOST=0.0.0.0
       - PORT=8000
     depends_on:

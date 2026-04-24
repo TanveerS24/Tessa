@@ -259,7 +259,11 @@ async def get_session(session_id: str):
 
 @router.delete("/sessions/{session_id}")
 async def delete_session(session_id: str):
-    """Delete a chat session and all its messages."""
+    """Delete a chat session and all its messages.
+    
+    Note: This does NOT delete any context memory entries.
+    User facts and preferences stored in context are preserved.
+    """
     try:
         memory_service = MemoryService()
         success = memory_service.delete_chat_session(session_id)
