@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
+import ttsService from '../services/ttsService';
 
 const styles = {
   messageRow: (isUser) => ({
@@ -51,12 +52,49 @@ const styles = {
     alignItems: 'flex-end',
     maxWidth: '90%',
   }),
+  messageWrapper: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: '4px',
+  },
+  speakButton: (isPlaying) => ({
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '24px',
+    height: '24px',
+    borderRadius: '50%',
+    border: 'none',
+    background: isPlaying ? 'rgba(102, 126, 234, 0.5)' : 'rgba(255, 255, 255, 0.1)',
+    color: '#fff',
+    cursor: 'pointer',
+    fontSize: '12px',
+    transition: 'all 0.2s ease',
+    opacity: 0.7,
+    ':hover': {
+      opacity: 1,
+      background: 'rgba(102, 126, 234, 0.3)',
+    },
+  }),
 };
 
-function Message({ text, isUser, isError, timestamp }) {
-  const time = timestamp 
-    ? new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    : '';
+function Message({ text, isUser, isError, timestamp, autoSpeak }) {
+  const [isSpeaking, setIsSpeaking] = useState(false);
+
+  const handleSpeak = () => {
+    if (isSpeaking) {
+      ttsService.stop();
+      setIsSpeaking(false);
+    } else {
+      ttsService.speak(text);
+      setIsSpeaking(true);
+      
+      // Reset after a reasonable time (speech synthesis doesn't always fire onend reliably)
+      const estimatedDuration = Math.max(2000, text.length * 80);
+      setTimeout(() => setIsSpeaking(false), estimatedDuration);
+    }
+  };
 
   return (
     <div style={styles.messageRow(isUser)}>
@@ -64,8 +102,19 @@ function Message({ text, isUser, isError, timestamp }) {
         <div style={styles.avatar(isUser)}>
           {isUser ? '👤' : isError ? '⚠️' : '🎙️'}
         </div>
-        <div style={styles.message(isUser, isError)}>
-          {text}
+        <div style={styles.messageWrapper}>
+          <div style={styles.message(isUser, isError)}>
+            {text}
+          </div>
+          {!isUser && !isError && ttsService.isSupported() && (
+            <button
+              style={styles.speakButton(isSpeaking)}
+              onClick={handleSpeak}
+              title={isSpeaking ? 'Stop speaking' : 'Speak this message'}
+            >
+              {isSpeaking ? '⏹️' : '🔊'}
+            </button>
+          )}
         </div>
       </div>
     </div>

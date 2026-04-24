@@ -47,7 +47,7 @@ const styles = {
   },
 };
 
-function ChatWindow({ messages, isLoading, messagesEndRef }) {
+function ChatWindow({ messages, isLoading, messagesEndRef, autoSpeak }) {
   if (messages.length === 0) {
     return (
       <div style={styles.container}>
@@ -76,6 +76,7 @@ function ChatWindow({ messages, isLoading, messagesEndRef }) {
           isUser={message.isUser}
           isError={message.isError}
           timestamp={message.timestamp}
+          autoSpeak={autoSpeak}
         />
       ))}
       

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import ChatWindow from './components/ChatWindow';
 import InputArea from './components/InputArea';
 import api from './services/api';
+import ttsService from './services/ttsService';
 
 const styles = {
   app: {
@@ -193,6 +194,24 @@ const styles = {
     marginBottom: '8px',
     paddingLeft: '4px',
   },
+  sidebarToggle: {
+    position: 'absolute',
+    top: '12px',
+    left: '12px',
+    zIndex: 100,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '32px',
+    height: '32px',
+    borderRadius: '8px',
+    border: 'none',
+    background: 'rgba(255, 255, 255, 0.1)',
+    color: '#fff',
+    cursor: 'pointer',
+    fontSize: '16px',
+    transition: 'all 0.2s ease',
+  },
 };
 
 function App() {
@@ -202,6 +221,8 @@ function App() {
   const [currentSessionId, setCurrentSessionId] = useState(null);
   const [isTemporary, setIsTemporary] = useState(false);
   const [currentTitle, setCurrentTitle] = useState('New Chat');
+  const [autoSpeak, setAutoSpeak] = useState(ttsService.isAutoSpeak);
+  const [sidebarVisible, setSidebarVisible] = useState(true);
   const [systemStatus, setSystemStatus] = useState({
     status: 'checking',
     ollama_connected: false,
@@ -275,7 +296,7 @@ function App() {
 
   const handleDeleteSession = async (e, sessionId) => {
     e.stopPropagation();
-    if (!window.confirm('Delete this chat?')) return;
+    if (!window.confirm('Delete this chat session?\n\nThe chat history will be removed, but your context memory (learned facts about you) will be preserved.')) return;
     
     try {
       await api.deleteSession(sessionId);
@@ -294,6 +315,15 @@ function App() {
       return;
     }
     setIsTemporary(!isTemporary);
+  };
+
+  const handleToggleAutoSpeak = () => {
+    const newValue = ttsService.toggleAutoSpeak();
+    setAutoSpeak(newValue);
+  };
+
+  const handleToggleSidebar = () => {
+    setSidebarVisible(!sidebarVisible);
   };
 
   const handleSendMessage = async (text) => {
@@ -317,6 +347,11 @@ function App() {
         timestamp: new Date().toISOString() 
       };
       setMessages(prev => [...prev, aiMessage]);
+
+      // Auto-speak if enabled
+      if (autoSpeak && ttsService.isSupported()) {
+        ttsService.speak(response.response);
+      }
 
       // If this was the first message in a new non-temporary chat, refresh sessions
       if (isFirstMessage && !currentSessionId && !isTemporary) {
@@ -347,9 +382,28 @@ function App() {
 
   return (
     <div style={styles.app}>
+      {/* Sidebar Toggle Button (when hidden) */}
+      {!sidebarVisible && (
+        <button 
+          style={styles.sidebarToggle}
+          onClick={handleToggleSidebar}
+          title="Show sidebar"
+        >
+          ☰
+        </button>
+      )}
+
       {/* Sidebar */}
+      {sidebarVisible && (
       <div style={styles.sidebar}>
         <div style={styles.sidebarHeader}>
+          <button 
+            style={{ ...styles.sidebarToggle, position: 'relative', top: 0, left: 0 }}
+            onClick={handleToggleSidebar}
+            title="Hide sidebar"
+          >
+            ☰
+          </button>
           <span style={{ fontSize: '24px' }}>🎙️</span>
           <span style={styles.sidebarTitle}>Tessa</span>
         </div>
@@ -373,9 +427,24 @@ function App() {
         >
           <span style={{ fontSize: '16px' }}>🔒</span>
           <span style={styles.tempChatLabel}>
-            {isTemporary ? 'Temporary Chat (No Memory)' : 'Enable Temporary Chat'}
+            {isTemporary ? 'Temporary Chat Enabled' : 'Enable Temporary Chat'}
           </span>
         </div>
+
+        {ttsService.isSupported() && (
+          <div 
+            style={{
+              ...styles.tempChatToggle,
+              ...(autoSpeak ? styles.tempChatActive : {}),
+            }}
+            onClick={handleToggleAutoSpeak}
+          >
+            <span style={{ fontSize: '16px' }}>🔊</span>
+            <span style={styles.tempChatLabel}>
+              {autoSpeak ? 'Auto-Speak Enabled' : 'Enable Auto-Speak'}
+            </span>
+          </div>
+        )}
 
         <div style={styles.sectionTitle}>Recent Chats</div>
         
@@ -401,9 +470,10 @@ function App() {
           ))}
         </div>
       </div>
+      )}
 
       {/* Main Chat Area */}
-      <div style={styles.main}>
+      <div style={{...styles.main, marginLeft: sidebarVisible ? 0 : '40px'}}>
         <header style={styles.header}>
           <div style={styles.headerLeft}>
             <span style={styles.currentChatTitle}>{currentTitle}</span>
@@ -434,6 +504,7 @@ function App() {
               messages={messages} 
               isLoading={isLoading}
               messagesEndRef={messagesEndRef}
+              autoSpeak={autoSpeak}
             />
           )}
           <InputArea 
