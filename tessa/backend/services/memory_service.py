@@ -407,3 +407,169 @@ Remember: Be Tessa. A best friend assistant who's helpful but has personality.""
                 print(f"Error exporting chat sessions: {e}")
 
         return data
+
+    def extract_and_store_context(self, user_message: str, ai_response: str) -> List[Dict[str, str]]:
+        """
+        Extract important user information from conversation and store it.
+        
+        This method analyzes the conversation for:
+        - User name
+        - Preferences (likes, dislikes)
+        - Important facts about the user
+        - Goals or tasks mentioned
+        
+        Returns a list of extracted context entries that were stored.
+        """
+        import re
+        
+        extracted_contexts = []
+        message_lower = user_message.lower()
+        
+        # Pattern 1: "My name is..." or "I'm..." or "I am..."
+        name_patterns = [
+            r"my name is\s+([A-Z][a-zA-Z\s]+?)(?:\.|,|!|and|but|$)",
+            r"i am\s+([A-Z][a-zA-Z\s]+?)(?:\.|,|!|and|but|$)",
+            r"i'm\s+([A-Z][a-zA-Z\s]+?)(?:\.|,|!|and|but|$)",
+            r"call me\s+([A-Z][a-zA-Z\s]+?)(?:\.|,|!|and|but|$)",
+        ]
+        
+        for pattern in name_patterns:
+            match = re.search(pattern, user_message, re.IGNORECASE)
+            if match:
+                name = match.group(1).strip()
+                # Clean up the name (remove trailing words that aren't part of name)
+                name = re.sub(r'\s+(?:and|but|or|the|a|an)\s+.*$', '', name, flags=re.IGNORECASE)
+                if name and len(name) > 1 and len(name) < 50:
+                    success = self.store_context("user_name", name)
+                    if success:
+                        extracted_contexts.append({"key": "user_name", "value": name})
+                        print(f"Extracted and stored user name: {name}")
+                    break
+        
+        # Pattern 2: "I like..." or "I love..." or "I enjoy..." or "I prefer..."
+        like_patterns = [
+            r"i\s+(?:like|love|enjoy|prefer)\s+(.+?)(?:\.|,|!|but|and|$)",
+        ]
+        
+        for pattern in like_patterns:
+            match = re.search(pattern, user_message, re.IGNORECASE)
+            if match:
+                preference = match.group(1).strip()
+                # Clean up the preference
+                preference = re.sub(r'\s+(?:but|and|or)\s+.*$', '', preference, flags=re.IGNORECASE)
+                if preference and len(preference) > 2 and len(preference) < 100:
+                    # Check if we already have likes stored
+                    existing_likes = self.get_user_context().get("likes", "")
+                    if existing_likes:
+                        # Append new like if not already present
+                        if preference.lower() not in existing_likes.lower():
+                            new_likes = f"{existing_likes}, {preference}"
+                            success = self.store_context("likes", new_likes)
+                            if success:
+                                extracted_contexts.append({"key": "likes", "value": new_likes})
+                    else:
+                        success = self.store_context("likes", preference)
+                        if success:
+                            extracted_contexts.append({"key": "likes", "value": preference})
+                    print(f"Extracted and stored user likes: {preference}")
+                    break
+        
+        # Pattern 3: "I don't like..." or "I hate..." or "I dislike..."
+        dislike_patterns = [
+            r"i\s+(?:don't like|do not like|hate|dislike)\s+(.+?)(?:\.|,|!|but|and|$)",
+        ]
+        
+        for pattern in dislike_patterns:
+            match = re.search(pattern, user_message, re.IGNORECASE)
+            if match:
+                dislike = match.group(1).strip()
+                # Clean up the dislike
+                dislike = re.sub(r'\s+(?:but|and|or)\s+.*$', '', dislike, flags=re.IGNORECASE)
+                if dislike and len(dislike) > 2 and len(dislike) < 100:
+                    existing_dislikes = self.get_user_context().get("dislikes", "")
+                    if existing_dislikes:
+                        if dislike.lower() not in existing_dislikes.lower():
+                            new_dislikes = f"{existing_dislikes}, {dislike}"
+                            success = self.store_context("dislikes", new_dislikes)
+                            if success:
+                                extracted_contexts.append({"key": "dislikes", "value": new_dislikes})
+                    else:
+                        success = self.store_context("dislikes", dislike)
+                        if success:
+                            extracted_contexts.append({"key": "dislikes", "value": dislike})
+                    print(f"Extracted and stored user dislikes: {dislike}")
+                    break
+        
+        # Pattern 4: Location/Place - "I live in..." or "I'm from..." or "I work at..."
+        location_patterns = [
+            r"i\s+(?:live in|am from|work at|work in)\s+(.+?)(?:\.|,|!|and|but|$)",
+            r"i'm\s+(?:from|in|at)\s+(.+?)(?:\.|,|!|and|but|$)",
+        ]
+        
+        for pattern in location_patterns:
+            match = re.search(pattern, user_message, re.IGNORECASE)
+            if match:
+                location = match.group(1).strip()
+                location = re.sub(r'\s+(?:and|but|or)\s+.*$', '', location, flags=re.IGNORECASE)
+                if location and len(location) > 2 and len(location) < 100:
+                    success = self.store_context("location", location)
+                    if success:
+                        extracted_contexts.append({"key": "location", "value": location})
+                        print(f"Extracted and stored user location: {location}")
+                    break
+        
+        # Pattern 5: Job/Occupation - "I work as..." or "I'm a..." or "My job is..."
+        job_patterns = [
+            r"i work as\s+(?:a|an)?\s*(.+?)(?:\.|,|!|and|but|$)",
+            r"i'm\s+(?:a|an)\s+(.+?)(?:\.|,|!|and|but|$)",
+            r"my job is\s+(?:a|an)?\s*(.+?)(?:\.|,|!|and|but|$)",
+            r"i am\s+(?:a|an)\s+(.+?)(?:\.|,|!|and|but|$)",
+        ]
+        
+        for pattern in job_patterns:
+            match = re.search(pattern, user_message, re.IGNORECASE)
+            if match:
+                job = match.group(1).strip()
+                job = re.sub(r'\s+(?:and|but|or)\s+.*$', '', job, flags=re.IGNORECASE)
+                if job and len(job) > 2 and len(job) < 100:
+                    success = self.store_context("occupation", job)
+                    if success:
+                        extracted_contexts.append({"key": "occupation", "value": job})
+                        print(f"Extracted and stored user occupation: {job}")
+                    break
+        
+        # Pattern 6: Important facts (keywords indicating important information)
+        important_keywords = [
+            r"important",
+            r"remember",
+            r"don't forget",
+            r"key",
+            r"crucial",
+            r"vital",
+        ]
+        
+        # If message contains important keywords and seems like a statement of fact
+        for keyword in important_keywords:
+            if keyword in message_lower:
+                # Store the key message as an important note
+                # Clean the message for storage
+                note = user_message.strip()
+                if len(note) > 10 and len(note) < 200:
+                    existing_notes = self.get_user_context().get("important_notes", "")
+                    if existing_notes:
+                        if note.lower() not in existing_notes.lower():
+                            new_notes = f"{existing_notes} | {note}"
+                            success = self.store_context("important_notes", new_notes)
+                            if success:
+                                extracted_contexts.append({"key": "important_notes", "value": new_notes})
+                    else:
+                        success = self.store_context("important_notes", note)
+                        if success:
+                            extracted_contexts.append({"key": "important_notes", "value": note})
+                    print(f"Extracted and stored important note")
+                    break
+        
+        if extracted_contexts:
+            print(f"Context extraction complete. Stored {len(extracted_contexts)} new context entries.")
+        
+        return extracted_contexts

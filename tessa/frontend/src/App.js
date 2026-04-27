@@ -102,14 +102,18 @@ const styles = {
     whiteSpace: 'nowrap',
   },
   sessionDelete: {
-    opacity: 0,
     fontSize: '12px',
-    padding: '4px',
+    padding: '4px 6px',
     borderRadius: '4px',
-    ':hover': {
-      opacity: 1,
-      background: 'rgba(244, 67, 54, 0.3)',
-    },
+    cursor: 'pointer',
+    opacity: 0,
+    transition: 'all 0.2s ease',
+  },
+  sessionDeleteVisible: {
+    opacity: 1,
+  },
+  sessionDeleteHover: {
+    background: 'rgba(244, 67, 54, 0.3)',
   },
   main: {
     flex: 1,
@@ -223,6 +227,7 @@ function App() {
   const [currentTitle, setCurrentTitle] = useState('New Chat');
   const [autoSpeak, setAutoSpeak] = useState(ttsService.isAutoSpeak);
   const [sidebarVisible, setSidebarVisible] = useState(true);
+  const [hoveredSession, setHoveredSession] = useState(null);
   const [systemStatus, setSystemStatus] = useState({
     status: 'checking',
     ollama_connected: false,
@@ -455,14 +460,21 @@ function App() {
               style={{
                 ...styles.sessionItem,
                 ...(currentSessionId === session.id ? styles.sessionItemActive : {}),
+                ...(hoveredSession === session.id ? styles.sessionItemHover : {}),
               }}
               onClick={() => handleSessionClick(session.id)}
+              onMouseEnter={() => setHoveredSession(session.id)}
+              onMouseLeave={() => setHoveredSession(null)}
             >
               <span style={styles.sessionIcon}>💬</span>
               <span style={styles.sessionTitle}>{session.title}</span>
               <span 
-                style={styles.sessionDelete}
+                style={{
+                  ...styles.sessionDelete,
+                  ...(hoveredSession === session.id ? styles.sessionDeleteVisible : {}),
+                }}
                 onClick={(e) => handleDeleteSession(e, session.id)}
+                title="Delete chat (context memory preserved)"
               >
                 🗑️
               </span>

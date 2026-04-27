@@ -76,6 +76,16 @@ async def chat(request: ChatRequest):
             is_temporary=request.is_temporary
         )
 
+        # Automatically extract and store context from user message (only for non-temporary chats)
+        if not request.is_temporary:
+            try:
+                extracted_contexts = memory_service.extract_and_store_context(request.message, ai_response)
+                if extracted_contexts:
+                    print(f"Auto-extracted {len(extracted_contexts)} context entries from conversation")
+            except Exception as e:
+                # Don't fail the chat if context extraction fails
+                print(f"Context extraction failed (non-critical): {e}")
+
         return ChatResponse(response=ai_response)
 
     except HTTPException:
@@ -270,9 +280,24 @@ async def delete_session(session_id: str):
         if not success:
             raise HTTPException(status_code=500, detail="Failed to delete session")
         
-        return JSONResponse(content={"message": "Session deleted successfully"})
+        return JSONResponse(content={"message": "Session deleted successfully. Context memory preserved."})
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to delete session: {str(e)}")
+
+
+@router.get("/chat_history", response_model=ChatSessionListResponse)
+async def get_chat_history(include_temporary: bool = False):
+    """Get all chat sessions for history view.
+    
+    This endpoint retrieves all chat sessions from the database,
+    similar to /sessions but with clearer naming for history retrieval.
+    """
+    try:
+        memory_service = MemoryService()
+        sessions = memory_service.get_all_chat_sessions(include_temporary=include_temporary)
+        return ChatSessionListResponse(sessions=sessions, total=len(sessions))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch chat history: {str(e)}")
 
 
 # Data Export Endpoint
