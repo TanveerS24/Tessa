@@ -206,13 +206,41 @@ Remember: Be Tessa. A best friend assistant who's helpful but has personality.""
             print(f"Error fetching all context: {e}")
             return []
 
-    def generate_chat_title(self, message: str) -> str:
-        """Generate a concise title from the first message."""
-        words = message.strip().split()[:8]
-        title = " ".join(words)
-        if len(message) > 50:
-            title += "..."
-        return title if title else "New Chat"
+    async def generate_chat_title(self, message: str) -> str:
+        """Generate a concise title from the first message using AI."""
+        print(f"[DEBUG] Generating AI title for message: '{message[:50]}...'")
+        try:
+            from ..api.ollama_service import OllamaService
+            
+            # Create a focused prompt for title generation
+            title_prompt = f"""Generate a very short, descriptive title (max 5 words) for this chat message. 
+            The title should capture the main topic or question.
+            
+            Message: "{message}"
+            
+            Title (max 5 words):"""
+            
+            print(f"[DEBUG] Title prompt: {title_prompt}")
+            ollama_service = OllamaService()
+            ai_title = await ollama_service.generate(title_prompt)
+            print(f"[DEBUG] AI generated title: '{ai_title}'")
+            
+            # Clean up the AI response
+            title = ai_title.strip().strip('"').strip("'")
+            
+            # Limit to 5 words max
+            words = title.split()[:5]
+            title = " ".join(words)
+            
+            print(f"[DEBUG] Final title: '{title}'")
+            return title if title else "New Chat"
+            
+        except Exception as e:
+            print(f"[ERROR] Error generating AI title, using fallback: {e}")
+            # Fallback to simple truncation
+            words = message.strip().split()[:5]
+            title = " ".join(words)
+            return title if title else "New Chat"
 
     def create_chat_session(self, title: str = None, is_temporary: bool = False) -> Optional[str]:
         """Create a new chat session and return its ID."""

@@ -8,7 +8,6 @@ const styles = {
     width: '100%',
   }),
   message: (isUser, isError) => ({
-    maxWidth: '80%',
     padding: '12px 16px',
     borderRadius: isUser ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
     background: isError 
@@ -30,6 +29,7 @@ const styles = {
     lineHeight: '1.5',
     whiteSpace: 'pre-wrap',
     wordWrap: 'break-word',
+    flex: 1,
   }),
   avatar: (isUser) => ({
     width: '32px',

@@ -54,9 +54,16 @@ async def chat(request: ChatRequest):
             if not session:
                 raise HTTPException(status_code=404, detail="Chat session not found")
         elif not request.is_temporary:
-            # Create new persistent session
-            title = memory_service.generate_chat_title(request.message) if request.generate_title else "New Chat"
+            # Create new persistent session with AI-generated title
+            if request.generate_title:
+                print(f"[DEBUG] generate_title is True, calling AI title generation")
+                title = await memory_service.generate_chat_title(request.message)
+                print(f"[DEBUG] Received title: '{title}'")
+            else:
+                print(f"[DEBUG] generate_title is False, using default title")
+                title = "New Chat"
             session_id = memory_service.create_chat_session(title=title, is_temporary=False)
+            print(f"[DEBUG] Created session {session_id} with title '{title}'")
 
         # Build prompt with context (skip memory for temporary chats)
         if request.is_temporary:
