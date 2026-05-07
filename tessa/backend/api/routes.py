@@ -56,14 +56,10 @@ async def chat(request: ChatRequest):
         elif not request.is_temporary:
             # Create new persistent session with AI-generated title
             if request.generate_title:
-                print(f"[DEBUG] generate_title is True, calling AI title generation")
                 title = await memory_service.generate_chat_title(request.message)
-                print(f"[DEBUG] Received title: '{title}'")
             else:
-                print(f"[DEBUG] generate_title is False, using default title")
                 title = "New Chat"
             session_id = memory_service.create_chat_session(title=title, is_temporary=False)
-            print(f"[DEBUG] Created session {session_id} with title '{title}'")
 
         # Build prompt with context (skip memory for temporary chats)
         if request.is_temporary:
@@ -83,7 +79,7 @@ async def chat(request: ChatRequest):
             is_temporary=request.is_temporary
         )
 
-        # Automatically extract and store context from user message (only for non-temporary chats)
+        # Extract and store context from user message (only for non-temporary chats)
         if not request.is_temporary:
             try:
                 extracted_contexts = memory_service.extract_and_store_context(request.message, ai_response)
@@ -323,3 +319,27 @@ async def export_data():
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to export data: {str(e)}")
+
+
+@router.post("/context/manage")
+async def manage_context(action: str = "cleanup"):
+    """Let Ollama manage context memory - add, remove, update, prioritize, or cleanup."""
+    try:
+        from services.message_processor import MessageProcessor
+        
+        message_processor = MessageProcessor()
+        result = await message_processor.manage_context_memory(action)
+        return JSONResponse(content=result)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Context management failed: {str(e)}")
+
+
+@router.get("/context/by_priority")
+async def get_context_by_priority(priority: str):
+    """Get context entries filtered by priority (low/medium/high)."""
+    try:
+        memory_service = MemoryService()
+        contexts = memory_service.get_context_by_priority(priority)
+        return JSONResponse(content={"contexts": contexts})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch context by priority: {str(e)}")

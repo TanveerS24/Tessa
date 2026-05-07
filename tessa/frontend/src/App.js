@@ -220,6 +220,7 @@ const styles = {
 
 function App() {
   const [messages, setMessages] = useState([]);
+  const [messageQueue, setMessageQueue] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [sessions, setSessions] = useState([]);
   const [currentSessionId, setCurrentSessionId] = useState(null);
@@ -332,7 +333,13 @@ function App() {
   };
 
   const handleSendMessage = async (text) => {
-    if (!text.trim() || isLoading) return;
+    if (!text.trim()) return;
+
+    // Add message to queue if currently loading
+    if (isLoading) {
+      setMessageQueue(prev => [...prev, text]);
+      return;
+    }
 
     const isFirstMessage = messages.length === 0;
     
@@ -382,6 +389,15 @@ function App() {
       setIsLoading(false);
     }
   };
+
+  // Process message queue
+  useEffect(() => {
+    if (!isLoading && messageQueue.length > 0) {
+      const nextMessage = messageQueue[0];
+      setMessageQueue(prev => prev.slice(1));
+      handleSendMessage(nextMessage);
+    }
+  }, [isLoading, messageQueue]);
 
   const isHealthy = systemStatus.ollama_connected && systemStatus.mongodb_connected;
 
@@ -522,7 +538,8 @@ function App() {
           <InputArea 
             onSendMessage={handleSendMessage} 
             isLoading={isLoading}
-            disabled={!isHealthy}
+            disabled={false}  // Temporarily enabled for debugging
+            messageQueue={messageQueue}
           />
         </div>
       </div>

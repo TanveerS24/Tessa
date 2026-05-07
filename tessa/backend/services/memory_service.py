@@ -166,8 +166,8 @@ Remember: Be Tessa. A best friend assistant who's helpful but has personality.""
             print(f"Error storing conversation: {e}")
             return False
 
-    def store_context(self, key: str, value: str) -> bool:
-        """Store or update a context entry."""
+    def store_context(self, key: str, value: str, priority: str = "medium") -> bool:
+        """Store or update a context entry with priority."""
         if self.db.context is None:
             return False
 
@@ -177,6 +177,7 @@ Remember: Be Tessa. A best friend assistant who's helpful but has personality.""
                 {
                     "$set": {
                         "value": value,
+                        "priority": priority.lower(),
                         "updated_at": datetime.utcnow()
                     }
                 },
@@ -186,6 +187,46 @@ Remember: Be Tessa. A best friend assistant who's helpful but has personality.""
         except Exception as e:
             print(f"Error storing context: {e}")
             return False
+    
+    def add_context(self, key: str, value: str, priority: str = "medium") -> bool:
+        """Add a new context entry."""
+        return self.store_context(key, value, priority)
+    
+    def update_context(self, key: str, value: str, priority: str = "medium") -> bool:
+        """Update an existing context entry."""
+        return self.store_context(key, value, priority)
+    
+    def delete_context_by_key(self, key: str) -> bool:
+        """Delete context entry by key."""
+        if self.db.context is None:
+            return False
+
+        try:
+            result = self.db.context.delete_one({"key": key})
+            return result.deleted_count > 0
+        except Exception as e:
+            print(f"Error deleting context: {e}")
+            return False
+    
+    def get_context_by_priority(self, priority: str) -> List[Dict[str, Any]]:
+        """Get context entries filtered by priority."""
+        if self.db.context is None:
+            return []
+
+        try:
+            entries = []
+            for doc in self.db.context.find({"priority": priority.lower()}):
+                entries.append({
+                    "id": str(doc.get("_id")),
+                    "key": doc.get("key", ""),
+                    "value": doc.get("value", ""),
+                    "priority": doc.get("priority", "medium"),
+                    "updated_at": doc.get("updated_at")
+                })
+            return entries
+        except Exception as e:
+            print(f"Error fetching context by priority: {e}")
+            return []
 
     def get_all_context(self) -> List[Dict[str, Any]]:
         """Get all context entries."""
@@ -210,7 +251,7 @@ Remember: Be Tessa. A best friend assistant who's helpful but has personality.""
         """Generate a concise title from the first message using AI."""
         print(f"[DEBUG] Generating AI title for message: '{message[:50]}...'")
         try:
-            from ..api.ollama_service import OllamaService
+            from services.ollama_service import OllamaService
             
             # Create a focused prompt for title generation
             title_prompt = f"""Generate a very short, descriptive title (max 5 words) for this chat message. 
@@ -260,6 +301,26 @@ Remember: Be Tessa. A best friend assistant who's helpful but has personality.""
         except Exception as e:
             print(f"Error creating chat session: {e}")
             return None
+    
+    def update_session_title(self, session_id: str, title: str) -> bool:
+        """Update a chat session's title."""
+        if self.db.chat_sessions is None:
+            return False
+
+        try:
+            result = self.db.chat_sessions.update_one(
+                {"_id": ObjectId(session_id)},
+                {
+                    "$set": {
+                        "title": title,
+                        "updated_at": datetime.utcnow()
+                    }
+                }
+            )
+            return result.modified_count > 0
+        except Exception as e:
+            print(f"Error updating session title: {e}")
+            return False
 
     def get_chat_session(self, session_id: str) -> Optional[Dict[str, Any]]:
         """Get a chat session by ID."""

@@ -182,7 +182,7 @@ const styles = {
   }),
 };
 
-function InputArea({ onSendMessage, isLoading, disabled }) {
+function InputArea({ onSendMessage, isLoading, disabled, messageQueue = [] }) {
   const [input, setInput] = useState('');
   const [isFocused, setIsFocused] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
@@ -217,7 +217,7 @@ function InputArea({ onSendMessage, isLoading, disabled }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (input.trim() && !isLoading && !disabled) {
+    if (input.trim() && !disabled) {
       onSendMessage(input.trim());
       setInput('');
     }
@@ -255,8 +255,16 @@ function InputArea({ onSendMessage, isLoading, disabled }) {
         onKeyDown={handleKeyDown}
         onFocus={() => setIsFocused(true)}
         onBlur={() => setIsFocused(false)}
-        placeholder={disabled ? "System offline..." : isListening ? "Listening... (click stop to send)" : "Say 'Hey Tessa' or type a message..."}
-        disabled={isLoading || disabled}
+        placeholder={
+  disabled 
+    ? "System offline..." 
+    : isListening 
+      ? "Listening... (click stop to send)" 
+      : messageQueue.length > 0 
+        ? `${messageQueue.length} queued... (Enter to send, Shift+Enter for new line)` 
+        : "Say 'Hey Tessa' or type a message... (Shift+Enter for new line)"
+}
+        disabled={disabled}  // Allow typing while loading, only disable if system is offline
         style={{
           ...styles.input,
           ...(isFocused ? styles.inputFocus : {}),
@@ -265,7 +273,7 @@ function InputArea({ onSendMessage, isLoading, disabled }) {
       />
       <button
         type="submit"
-        disabled={isLoading || disabled || !input.trim()}
+        disabled={disabled || (!input.trim() && messageQueue.length === 0)}  // Disable if empty input AND no queued messages
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         style={{
@@ -274,7 +282,7 @@ function InputArea({ onSendMessage, isLoading, disabled }) {
           ...((isLoading || disabled || !input.trim()) ? styles.buttonDisabled : {}),
         }}
       >
-        {isLoading ? '...' : 'Send'}
+        {isLoading ? '...' : messageQueue.length > 0 ? `Send (${messageQueue.length} queued)` : 'Send'}
       </button>
     </form>
   );

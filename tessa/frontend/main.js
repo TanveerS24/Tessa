@@ -8,7 +8,7 @@
 
 
 
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, Tray, Menu, nativeImage } = require('electron');
 
 const path = require('path');
 
@@ -17,6 +17,7 @@ const path = require('path');
 // Keep a global reference of the window object
 
 let mainWindow;
+let tray;
 
 
 
@@ -90,16 +91,50 @@ function createWindow() {
 
 
 
+  // Create system tray
+  function createTray() {
+    const iconPath = path.join(__dirname, 'assets', 'icon.png');
+    tray = new Tray(nativeImage.createFromPath(iconPath));
+    
+    const contextMenu = Menu.buildFromTemplate([
+      {
+        label: 'Show Tessa',
+        click: () => {
+          mainWindow.show();
+          mainWindow.focus();
+        }
+      },
+      {
+        label: 'Quit',
+        click: () => {
+          app.quit();
+        }
+      }
+    ]);
+    
+    tray.setToolTip('Tessa AI Assistant');
+    tray.setContextMenu(contextMenu);
+  }
+
   // Emitted when the window is closed
+  mainWindow.on('close', (event) => {
+    if (!app.isQuitting) {
+      event.preventDefault();
+      mainWindow.hide();
+      
+      // Create tray if it doesn't exist
+      if (!tray) {
+        createTray();
+      }
+    }
+  });
 
+  // Emitted when the window is closed (for cleanup)
   mainWindow.on('closed', () => {
-
     mainWindow = null;
-
   });
 
 }
-
 
 
 // This method will be called when Electron has finished initialization
