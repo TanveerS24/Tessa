@@ -145,14 +145,47 @@ The architecture is ready for:
 
 Currently simulates with text input/output.
 
-### 2. Chat System
+### 2. Three-Queue Message Processing
+Every message goes through three parallel processing queues:
+
+**Queue 1: AI Response Generation**
+- Generates AI response to user message
+- Uses full context and memory for non-temporary chats
+
+**Queue 2: AI Title Generation** (First message only)
+- AI analyzes first message and creates concise 5-word title
+- Updates chat session name in sidebar automatically
+- Example: "My name is Alice and I work as a developer" → "Alice Developer Work"
+
+**Queue 3: Context Extraction with Priority**
+- AI extracts important user information with priority levels
+- **High**: Name, critical preferences, allergies, urgent info
+- **Medium**: Work details, location, hobbies, general preferences  
+- **Low**: Casual mentions, temporary states, minor details
+- Ollama has complete control over context memory operations
+
+### 3. Message Queuing System
+- **Multi-message queuing**: Can type multiple messages while AI processes responses
+- **Visual feedback**: Shows queue count (e.g., "2 queued...")
+- **Shift+Enter support**: Multi-line input with Shift+Enter for new lines
+- **Sequential processing**: Messages processed in order automatically
+- **No input blocking**: Full typing freedom while maintaining message order
+
+### 4. System Tray Integration
+- **Minimize to tray**: App minimizes to system tray instead of shutting down
+- **Background operation**: Continues running in background when minimized
+- **Tray menu**: Context menu with "Show Tessa" and "Quit" options
+- **Restore functionality**: Click tray icon to restore and focus window
+- **State preservation**: Maintains conversation and queue state when minimized
+
+### 5. Chat System
 - User sends message (text for now)
 - Backend retrieves memory and builds prompt
 - Calls Ollama for response
 - Stores conversation in MongoDB
 - Displays response in UI
 
-### 3. Memory System
+### 6. Memory System
 Two MongoDB collections:
 
 **convo**: Stores full conversations
@@ -165,19 +198,37 @@ Two MongoDB collections:
 - `value`
 - `updated_at`
 
-### 4. RAG-like Context Retrieval
+### 7. RAG-like Context Retrieval
 Before sending to Ollama:
 - Fetches recent conversations (last N)
 - Fetches all context entries
 - Injects into system prompt as "memory"
 
-### 5. Tessa's Personality
+### 8. Tessa's Personality
 System prompt enforces:
 - Calm, confident, slightly teasing tone
 - Short responses
 - Conversational (no bullet points)
 - Asks follow-up questions
 - Acts like a best friend, not formal AI
+
+## User Interface & Shortcuts
+
+### Keyboard Shortcuts
+- **Enter**: Send message / Add to queue if AI is processing
+- **Shift+Enter**: Add new line in input field
+- **Alt+F4**: Minimize to system tray (instead of quitting)
+
+### Message Queue Indicators
+- **Placeholder**: Shows queue count (e.g., "2 queued...")
+- **Send Button**: Shows "Send (2 queued)" when messages are waiting
+- **Visual Feedback**: Real-time queue status in input area
+
+### System Tray Operations
+- **Close Window**: Minimizes to system tray
+- **Click Tray Icon**: Restore and focus window
+- **Right-click Tray**: Context menu with Show/Quit options
+- **Background Mode**: App continues processing messages when minimized
 
 ## Environment Variables
 
